@@ -1,38 +1,61 @@
-# To run and test the code you need to update 4 places:
-# 1. Change MY_EMAIL/MY_PASSWORD to your own details.
-# 2. Go to your email provider and make it allow less secure apps.
-# 3. Update the SMTP ADDRESS to match your email provider.
-# 4. Update birthdays.csv to contain today's month and day.
-# See the solution video in the 100 Days of Python Course for explainations.
-
-
-from datetime import datetime
+import datetime as date_t
 import pandas
 import random
 import smtplib
 import os
 
-# import os and use it to get the Github repository secrets
+# 1. Pull secure credentials from GitHub environment variablesMY_EMAIL = os.environ.get("MY_EMAIL")
 MY_EMAIL = os.environ.get("MY_EMAIL")
-MY_PASSWORD = os.environ.get("MY_PASSWORD")
+PASSWORD = os.environ.get("MY_PASSWORD")
+file_list = ["letter_templates/letter_1.txt", "letter_templates/letter_2.txt", "letter_templates/letter_3.txt"]
 
-today = datetime.now()
-today_tuple = (today.month, today.day)
+# 2. Read the birthday database
+b_csv = pandas.read_csv("birthdays.csv")
 
-data = pandas.read_csv("birthdays.csv")
-birthdays_dict = {(data_row["month"], data_row["day"])                  : data_row for (index, data_row) in data.iterrows()}
-if today_tuple in birthdays_dict:
-    birthday_person = birthdays_dict[today_tuple]
-    file_path = f"letter_templates/letter_{random.randint(1, 3)}.txt"
-    with open(file_path) as letter_file:
-        contents = letter_file.read()
-        contents = contents.replace("[NAME]", birthday_person["name"])
+# 3. Check current date logic directly
+now = date_t.datetime.now()
+b_days = b_csv[(b_csv.month == now.month) & (b_csv.day == now.day)]
 
-    with smtplib.SMTP("YOUR EMAIL PROVIDER SMTP SERVER ADDRESS") as connection:
-        connection.starttls()
-        connection.login(MY_EMAIL, MY_PASSWORD)
-        connection.sendmail(
-            from_addr=MY_EMAIL,
-            to_addrs=birthday_person["email"],
-            msg=f"Subject:Happy Birthday!\n\n{contents}"
-        )
+# 4. Loop through matching birthdays and send emails
+if not b_days.empty:
+    for (index, row) in b_days.iterrows():
+        new_file = random.choice(file_list)
+        
+        with open(new_file) as ran:
+            rand_file = ran.read()
+
+        # Customize the template letter        
+        new_card = rand_file.replace("[NAME]", row["name"])
+
+        # Fixed outer double quotes to single quotes to avoid conflict        
+        with open(f'Birthday Card to {row["name"]}.txt', "w") as file:
+            file.write(new_card)
+
+        # Connect to Gmail SMTP server and send        
+        with smtplib.SMTP("smtp.gmail.com") as send:
+            send.starttls()
+            send.login(user=MY_EMAIL, password=PASSWORD)
+            send.sendmail(
+                from_addr=MY_EMAIL,
+                to_addrs=row["email"],
+                msg=f"Subject:Happy Birthday!\n\n{new_card}"
+            )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
